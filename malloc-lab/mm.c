@@ -141,10 +141,56 @@ static void *extend_heap(size_t words)
 /*
  * mm_free - Freeing a block does nothing.
  */
-void mm_free(void *ptr)
+void mm_free(void *bp)
 {
+    /* 전체 블록 크기 정보를 가져온다 */
+    size_t size = GET_SIZE(HDRP(bp)); 
+
+    /* 블록을 free 상태로 표시한다*/
+    PUT(HDRP(bp), PACK(size, 0));
+    PUT(FTRP(bp), PACK(size, 0));
+
+    coalesce(bp);
 }
 
+static void *coalesce(void *bp) 
+{
+    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
+    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
+    size_t size = GET_SIZE(HDRP(bp));
+
+    /* Case 1: 앞, 뒤 모두 할당 되어있어서 병합 불가능함 */
+    if (prev_alloc && next_alloc) { 
+        return bp;
+    }
+
+    /* Case 2: 앞은 할당 되있구 뒤는 free, 뒤쪽 블록과 병합한다 */
+    else if (prev_alloc && !next_alloc) {     
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));      //크기를 합친다
+        PUT(HDRP(bp), PACK(size, 0));               //새로운 헤더 작성한다
+        PUT(FTRP(bp), PACK(size, 0));               //새로운 푸터 작성한다 
+    }
+
+    /* Case 3: 앞을 free, 뒤는 할당 됨 */
+    else if (!prev_alloc && next_alloc) {      
+        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
+        PUT(FTRP(bp), PACK(size, 0));                 //푸터를 새 블록 끝에 작성한다
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));      //헤더를 앞 블록에 작성한다 
+        bp = PREV_BLKP(bp);                           //bp를 병합된 블록 시작접으로 이동시킨다 
+    }
+
+    /* Case 4: 앞과 뒤 모두 free, 전체 블록을 병합 */
+    else {                                 
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) +
+                GET_SIZE(FTRP(NEXT_BLKP(bp)));          //전체 크기를 합침
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));        //헤더 앞 블록 위치에 작성
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));        //푸터 뒤쪽 블록 끝에 작성 
+        bp = PREV_BLKP(bp);                             //bp는 병합된 블록 시작점으로 이동 
+    }
+
+    return bp;
+
+}
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
