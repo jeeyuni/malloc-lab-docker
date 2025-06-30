@@ -68,6 +68,9 @@ team_t team = {
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE))) /* bp - WSIZE 는 헤더 주소*/
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
+// heap_listp 전역 변수로 선언
+static char *heap_listp = NULL; 
+
 /*
  * mm_init - initialize the malloc package.
  */
@@ -75,7 +78,25 @@ int mm_init(void)
 {
     if ((heap_listp = mem_sbrk(4 * WSIZE)) == (void *) -1)
         return -1;
-    
+
+    /*
+     * 초기 힙 구성 (alignment padding + 프롤로그 블록 + 에필로그 블록):
+     *
+     * [패딩][프롤로그 헤더][프롤로그 푸터][에필로그 헤더]
+     *   0         8               8             0
+     */
+
+    PUT(heap_listp, 0); // 패딩 : 8 바이트 정렬 맞추기 용 
+    PUT(heap_listp + (1 * WSIZE), PACK(DSIZE, 1));     // 프롤로그 헤더 (크기=8, 할당됨으로 표시)
+    PUT(heap_listp + (2 * WSIZE), PACK(DSIZE, 1));     // 프롤로그 푸터 (크기=8, 할당됨으로 표시)
+    PUT(heap_listp + (3 * WSIZE), PACK(0, 1));         // 에필로그 헤더 (크기=0, 할당됨으로 표시)
+
+    heap_listp += (2 * WSIZE);  // payload 영역의 시작점(bp)으로 포인터 이동
+
+    // 실제 힙을 CHUNKSIZE(힙을 확장할 기본 단위) 만큼 확장하여 실제로 사용 가능 한 초기 free 블록 생성
+    if (extend_heap(CHUNKSIZE / WSIZE) == NULL)
+        return -1;
+
     return 0;
 }
 
