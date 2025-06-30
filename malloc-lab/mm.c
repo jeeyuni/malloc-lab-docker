@@ -75,12 +75,12 @@ static char *heap_listp = NULL;
 static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
 static void *find_fit(size_t asize);
-static void place(void *bp, size_t asize)
+static void place(void *bp, size_t asize);
 
-    /*
-     * mm_init - initialize the malloc package.
-     */
-    int mm_init(void)
+/*
+ * mm_init - initialize the malloc package.
+ */
+int mm_init(void)
 {
     if ((heap_listp = mem_sbrk(4 * WSIZE)) == (void *)-1)
         return -1;
