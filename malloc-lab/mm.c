@@ -73,6 +73,9 @@ team_t team = {
  */
 int mm_init(void)
 {
+    if ((heap_listp = mem_sbrk(4 * WSIZE)) == (void *) -1)
+        return -1;
+    
     return 0;
 }
 
