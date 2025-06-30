@@ -117,6 +117,27 @@ void *mm_malloc(size_t size)
     }
 }
 
+
+static void *extend_heap(size_t words) 
+{
+    char *bp; 
+    size_t size; 
+
+    /* 8 바이트로 정렬해야하기 떄문에 사이즈가 홀수라면 짝수로 만들어준다 */
+    size = (words % 2) ? (words + 1) * WSIZE : words * WSIZE;
+    /* 힙을 size만큼 확장한다 */
+    if ((long)(bp = mem_sbrk(size)) == -1)
+        return NULL;
+
+    /* free header/ footer & epilogue header를 초기화 시킨다 */
+    PUT(HDRP(bp), PACK(size, 0)); /* 헤더 사이즈는 size , 할당 안됨*/
+    PUT(FTRP(bp), PACK(size, 0 )); /* 푸터 사이즈는 size , 할당 안됨*/
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0,1)); /* 새로운 에필로그 헤더 생성. 다음 블록(에필로그) 헤더 크기 : 0 , 할당 됨*/
+    
+    return coalesce(bp);
+
+}
+
 /*
  * mm_free - Freeing a block does nothing.
  */
