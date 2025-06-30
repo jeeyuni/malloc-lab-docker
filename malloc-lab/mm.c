@@ -26,11 +26,11 @@ team_t team = {
     /* Team name */
     "ateam",
     /* First member's full name */
-    "Harry Bovik",
+    "이지윤",
     /* First member's email address */
     "bovik@cs.cmu.edu",
     /* Second member's full name (leave blank if none) */
-    "",
+    "고민지",
     /* Second member's email address (leave blank if none) */
     ""};
 
@@ -71,6 +71,11 @@ team_t team = {
 // heap_listp 전역 변수로 선언
 static char *heap_listp = NULL; 
 
+
+static void *extend_heap(size_t words);
+static void *coalesce(void *bp);
+
+
 /*
  * mm_init - initialize the malloc package.
  */
@@ -106,15 +111,36 @@ int mm_init(void)
  */
 void *mm_malloc(size_t size)
 {
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    void *p = mem_sbrk(newsize);
-    if (p == (void *)-1)
+    size_t asize;       // 조정된 블록 크기 (헤더/푸터 포함, 정렬 고려)
+    size_t extendsize;  // 힙을 확장해야 할 경우 사용할 크기
+    char *bp;           // 반환할 블록의 포인터 (payload 시작점)
+
+    if (size == 0)
         return NULL;
+
+    // 요청 크기가 DSIZE(8바이트) 이하라면 최소 블록 크기 16바이트로 설정
+    if (size <= DSIZE)
+        asize = 2 * DSIZE;
     else
-    {
-        *(size_t *)p = size;
-        return (void *)((char *)p + SIZE_T_SIZE);
+        // size + 헤더/푸터 정렬 고려하여 8의 배수로 올림
+        asize = DSIZE * ((size + DSIZE + (DSIZE - 1)) / DSIZE);
+
+    // 적당한 free 블록을 implicit free list에서 탐색
+    if ((bp = find_fit(asize)) != NULL) {
+        // 찾았으면 그 자리에 블록 배치하고 반환
+        place(bp, asize);
+        return bp;
     }
+
+    // 못 찾았으면 힙을 확장
+    extendsize = MAX(asize, CHUNKSIZE);               // 요청 크기 or 기본 확장 크기 중 큰 값
+    if ((bp = extend_heap(extendsize / WSIZE)) == NULL)
+        return NULL;
+
+    // 확장한 힙에서 블록 배치
+    place(bp, asize);
+    return bp;
+
 }
 
 
