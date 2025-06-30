@@ -42,6 +42,33 @@ team_t team = {
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
+
+/* Basic constants and macros(매크로) */
+#define WSIZE   4   /* Word(워드) , header/footer 사이즈 (바이트) */
+#define DSIZE   8   /* Double word size (바이트) */
+#define CHUNKSIZE (1<<12)   /* heap 늘릴때의 기본 크기 (바이트) */
+
+#define MAX(x,y) ((x) > (y)? (x) : (y)) /*x랑 y중에 더 큰 수 찾기 */
+
+/* 크기(size)와 할당 여부(allocated bit)을 하나의 워드로 합친다 */
+#define PACK(size, alloc) ((size) | (alloc))
+
+/* 주소 포인터 p가 가리키는 워드(4바이트) 값을 읽고 val에 저장한다 */
+#define GET(p) (*(unsigned int *)(p))
+#define PUT(p, val) (*(unsigned int *)(p) = (val))
+
+/* 주소 p에서 size와 할당 여부(allocated) 비트만 추출한다 */
+#define GET_SIZE(p) (GET(p) & ~0x7) /* 하위 3비트를 제외한 사이즈 추출한다  64 32 16 8 | 4 2 1*/
+#define GET_ALLOC(p) (GET(p) & 0x1) /* 할당 여부 비트 추출 -> 제일 마지막 비트 */
+
+/* bp(block pointer, payload 영역의 시작 주소를 가리킴)로 부터 header, footer 주소를 계산한다 */
+#define HDRP(bp)    ((char *)(bp) - WSIZE) /* 헤더는 bp기준 4바이트 앞 */
+#define FTRP(bp)    ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)  /* 푸터는 블록 끝에서 8바이트 전*/
+
+/* bp부터 다음 블록과 이전 블록을 계산 */
+#define NEXT_BLKP(bp)   ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE))) /* bp - WSIZE 는 헤더 주소*/
+#define PREV_BLKP(bp)   ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE))) 
+
 /*
  * mm_init - initialize the malloc package.
  */
